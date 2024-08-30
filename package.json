@@ -1,11 +1,11 @@
 {
-  "name": "@hufe921/canvas-editor",
+  "name": "@liushuai05/canvas-editor",
   "author": "Hufe",
   "license": "MIT",
   "version": "0.9.89",
   "description": "rich text editor by canvas/svg",
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
+    "registry": "https://registry.yarnpkg.com/",
     "access": "public"
   },
   "files": [
