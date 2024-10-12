@@ -65,3 +65,7 @@ new Editor(document.querySelector('.canvas-editor'), {
 #### lib
 
 `npm run lib`
+
+
+
+yarn login --registry https://registry.yarnpkg.com/

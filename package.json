@@ -2,7 +2,7 @@
   "name": "@liushuai05/canvas-editor",
   "author": "Hufe",
   "license": "MIT",
-  "version": "0.9.90",
+  "version": "0.9.96",
   "description": "rich text editor by canvas/svg",
   "publishConfig": {
     "registry": "https://registry.yarnpkg.com/",
@@ -45,7 +45,6 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
-    "postinstall": "simple-git-hooks",
     "release": "node scripts/release.js"
   },
   "devDependencies": {
@@ -63,9 +62,6 @@
     "vite-plugin-css-injected-by-js": "^2.1.1",
     "vitepress": "1.0.0-beta.6",
     "vue": "^3.2.45"
-  },
-  "dependencies": {
-    "prismjs": "^1.27.0"
   },
   "simple-git-hooks": {
     "pre-commit": "npm run lint && npm run type:check",

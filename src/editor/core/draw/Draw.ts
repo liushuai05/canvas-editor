@@ -1816,6 +1816,8 @@ export class Draw {
         const {
           separator: { lineWidth }
         } = this.options
+        element.color='blue'
+        console.log(element)
         element.width = availableWidth / scale
         metrics.width = availableWidth
         metrics.height = lineWidth * scale
