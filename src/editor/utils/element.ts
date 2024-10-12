@@ -1312,7 +1312,7 @@ export function convertTextNodeToElement(
   return element
 }
 
-interface IGetElementListByHTMLOption {
+export interface IGetElementListByHTMLOption {
   innerWidth: number
 }
 
