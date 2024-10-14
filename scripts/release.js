@@ -20,7 +20,7 @@ fs.writeFileSync(pkgPath, JSON.stringify(targetPkg, null, 2))
 
 // 发布包
 try {
-  execSync('npm publish --access public')
+  execSync('npm publish --access public ')
 } catch (error) {
   throw new Error(error)
 } finally {
