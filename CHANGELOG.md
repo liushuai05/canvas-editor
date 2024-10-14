@@ -1,3 +1,17 @@
+## [0.9.99](https://github.com/Hufe921/canvas-editor/compare/v0.9.99) (2024-10-14)
+
+
+### Bug Fixes
+
+
+### Documentation
+
+
+### Features
+* feat:实现分割线可自定义设置大小及颜色 线型也可以添加双线粗细 #674  ([e84196d](https://github.com/liushuai05/canvas-editor/commit/e84196deab2f985cb0e7642735d04e5828bfcffe))
+
+
+
 ## [0.9.94](https://github.com/Hufe921/canvas-editor/compare/v0.9.93...v0.9.94) (2024-10-07)
 
 
