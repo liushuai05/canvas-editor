@@ -484,10 +484,10 @@ export const options: IEditorOption = {
   placeholder: {
     data: '请输入正文'
   },
-  separator: {
-    lineWidth: 5,
-    strokeStyle: '#f00'
-  },
+  // separator: {
+  //   lineWidth: 5,
+  //   strokeStyle: '#f00'
+  // },
   zone: {
     tipDisabled: false
   },
