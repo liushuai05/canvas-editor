@@ -1,3 +1,16 @@
+## [0.9.101](https://github.com/Hufe921/canvas-editor/compare/v0.9.101) (2024-10-14)
+
+
+### Bug Fixes
+* fix:当保存或者复制到剪切板粘贴时获取到的控件颜色会丢失 #843
+### Documentation
+
+
+### Features
+
+
+
+
 ## [0.9.99](https://github.com/Hufe921/canvas-editor/compare/v0.9.99) (2024-10-14)
 
 
