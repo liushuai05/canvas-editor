@@ -1455,7 +1455,11 @@ window.onload = function () {
     {
       mode: EditorMode.DESIGN,
       name: '设计模式'
-    }
+    },
+    {
+      mode: EditorMode.REVIEW,
+      name: '审阅模式'
+    },
   ]
   const modeElement = document.querySelector<HTMLDivElement>('.editor-mode')!
   modeElement.onclick = function () {

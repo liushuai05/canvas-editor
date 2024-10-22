@@ -7,7 +7,7 @@ import {
   EDITOR_ELEMENT_STYLE_ATTR
 } from '../../../../dataset/constant/Element'
 import { ControlComponent } from '../../../../dataset/enum/Control'
-import { EditorComponent } from '../../../../dataset/enum/Editor'
+import {EditorComponent, EditorMode} from '../../../../dataset/enum/Editor'
 import { ElementType } from '../../../../dataset/enum/Element'
 import { KeyMap } from '../../../../dataset/enum/KeyMap'
 import { DeepRequired } from '../../../../interface/Common'
@@ -21,6 +21,7 @@ import { IElement } from '../../../../interface/Element'
 import { omitObject, pickObject, splitText } from '../../../../utils'
 import { formatElementContext } from '../../../../utils/element'
 import { Control } from '../Control'
+import {TrackType} from '../../../../dataset/enum/Track'
 
 export class SelectControl implements IControlInstance {
   private element: IElement
@@ -106,10 +107,22 @@ export class SelectControl implements IControlInstance {
     const { startIndex, endIndex } = range
     const startElement = elementList[startIndex]
     const endElement = elementList[endIndex]
+    const draw = this.control.getDraw()
+    const isReviewMode = draw.getMode() === EditorMode.REVIEW
     // backspace
     if (evt.key === KeyMap.Backspace) {
+      if (isReviewMode) {
+        if (startIndex === endIndex && (startElement.controlComponent === ControlComponent.PREFIX ||
+          endElement.controlComponent === ControlComponent.POSTFIX ||
+          startElement.controlComponent === ControlComponent.PLACEHOLDER)) {
+            // 前缀、后缀、占位符
+            return this.control.removeControl(startIndex)
+        } else {
+          return this.clearSelect()
+        }
+      }
       // 清空选项
-      if (startIndex !== endIndex) {
+      else if (startIndex !== endIndex) {
         return this.clearSelect()
       } else {
         if (
@@ -125,12 +138,25 @@ export class SelectControl implements IControlInstance {
         }
       }
     } else if (evt.key === KeyMap.Delete) {
+      const endNextElement = elementList[endIndex + 1]
+
+      if (isReviewMode) {
+        if (startIndex === endIndex && (
+          (startElement.controlComponent === ControlComponent.PREFIX &&
+            endNextElement.controlComponent === ControlComponent.PLACEHOLDER) ||
+          endNextElement.controlComponent === ControlComponent.POSTFIX ||
+          startElement.controlComponent === ControlComponent.PLACEHOLDER ) ) {
+          // 前缀、后缀、占位符
+          return this.control.removeControl(startIndex)
+        } else {
+          return this.clearSelect()
+        }
+      }
       // 移除选区元素
-      if (startIndex !== endIndex) {
+      else if (startIndex !== endIndex) {
         // 清空选项
         return this.clearSelect()
       } else {
-        const endNextElement = elementList[endIndex + 1]
         if (
           (startElement.controlComponent === ControlComponent.PREFIX &&
             endNextElement.controlComponent === ControlComponent.PLACEHOLDER) ||
@@ -204,13 +230,32 @@ export class SelectControl implements IControlInstance {
     if (!~leftIndex || !~rightIndex) return -1
     // 删除元素
     const draw = this.control.getDraw()
-    draw.spliceElementList(elementList, leftIndex + 1, rightIndex - leftIndex)
-    // 增加占位符
-    if (isAddPlaceholder) {
-      this.control.addPlaceholder(preIndex, context)
+    const isReviewMode = draw.getMode() === EditorMode.REVIEW
+    const currentUser = draw.getOptions().user.name
+    if(isReviewMode) {
+      const deleteArray = elementList.slice(leftIndex +1 , rightIndex +1 )
+      const len = deleteArray.length
+      let startNum = leftIndex + 1
+      for(let i = 0; i < len; i++) {
+          const element = deleteArray[i]
+          if(element.trackType === TrackType.INSERT && element.track?.author === currentUser){
+            draw.spliceElementList(elementList, startNum + i, 1)
+            startNum--
+          } else {
+            draw.addReviewInformation([element], TrackType.DELETE)
+          }
+      }
+      return leftIndex
+    } else {
+      draw.spliceElementList(elementList, leftIndex + 1, rightIndex - leftIndex)
+      // 增加占位符
+      if (isAddPlaceholder) {
+        this.control.addPlaceholder(preIndex, context)
+      }
+      this.element.control!.code = null
+      return preIndex
     }
-    this.element.control!.code = null
-    return preIndex
+
   }
 
   public setSelect(
@@ -244,6 +289,8 @@ export class SelectControl implements IControlInstance {
     // 转换code
     const valueSet = valueSets.find(v => v.code === code)
     if (!valueSet) return
+    // 审阅模式
+    const isReviewMode = this.control.getDraw().getMode() === EditorMode.REVIEW
     // 样式赋值元素-默认值的第一个字符样式，否则取默认样式
     const valueElement = this.getValue(context)[0]
     const styleElement = valueElement
@@ -277,6 +324,9 @@ export class SelectControl implements IControlInstance {
       formatElementContext(elementList, [newElement], prefixIndex, {
         editorOptions: this.options
       })
+      if(isReviewMode){
+        draw.addReviewInformation([newElement],TrackType.INSERT)
+      }
       draw.spliceElementList(elementList, start + i, 0, newElement)
     }
     // 设置状态

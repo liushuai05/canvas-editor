@@ -46,6 +46,10 @@ import {
   RenderMode,
   WordBreak
 } from '../dataset/enum/Editor'
+import {ITrackStyleOption} from '../interface/Track'
+import {defaultTrackStyleOptions} from '../dataset/constant/Track'
+import {IUser} from '../interface/User'
+import {defaultUserOptions} from '../dataset/constant/User'
 
 export function mergeOption(
   options: IEditorOption = {}
@@ -126,6 +130,14 @@ export function mergeOption(
     ...defaultPageBorderOption,
     ...options.pageBorder
   }
+  const trackStyleOptions: Required<ITrackStyleOption> = {
+    ...defaultTrackStyleOptions,
+    ...options.trackStyle
+  }
+  const user: Required<IUser> = {
+    ...defaultUserOptions,
+    ...options.user
+  }
 
   return {
     mode: EditorMode.EDIT,
@@ -187,6 +199,8 @@ export function mergeOption(
     lineBreak: lineBreakOptions,
     separator: separatorOptions,
     lineNumber: lineNumberOptions,
-    pageBorder: pageBorderOptions
+    pageBorder: pageBorderOptions,
+    trackStyle: trackStyleOptions,
+    user: user
   }
 }

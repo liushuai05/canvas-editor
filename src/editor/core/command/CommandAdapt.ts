@@ -2058,6 +2058,20 @@ export class CommandAdapt {
     this.draw.insertElementList([cloneElement])
   }
 
+  public hideTracks (hide:boolean) {
+
+    if(hide) {
+      this.draw.hideReview()
+    } else {
+      this.draw.showReview()
+    }
+      this.draw.render({
+        isSetCursor: false,
+        isSubmitHistory: false
+      })
+
+  }
+
   public focus(payload?: IFocusOption) {
     const { position = LocationPosition.AFTER } = payload || {}
     const curIndex =

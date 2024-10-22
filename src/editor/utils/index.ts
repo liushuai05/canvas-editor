@@ -350,3 +350,10 @@ export function isRectIntersect(
   }
   return true
 }
+
+export function getCurrentTimeString():string {
+  const date = new Date()
+  const dateString = date.toLocaleDateString().replaceAll('/','-')
+  const timeString = date.toLocaleTimeString()
+  return dateString + ' ' + timeString
+}

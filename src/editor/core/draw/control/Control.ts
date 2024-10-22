@@ -1,7 +1,7 @@
-import { ControlComponent, ControlType } from '../../../dataset/enum/Control'
-import { EditorZone } from '../../../dataset/enum/Editor'
-import { ElementType } from '../../../dataset/enum/Element'
-import { DeepRequired } from '../../../interface/Common'
+import {ControlComponent, ControlType} from '../../../dataset/enum/Control'
+import {EditorMode, EditorZone} from '../../../dataset/enum/Editor'
+import {ElementType} from '../../../dataset/enum/Element'
+import {DeepRequired} from '../../../interface/Common'
 import {
   IControl,
   IControlContext,
@@ -57,6 +57,7 @@ import {
 } from '../../../dataset/constant/Element'
 import { IRowElement } from '../../../interface/Row'
 import { RowFlex } from '../../../dataset/enum/Row'
+import {TrackType} from '../../../dataset/enum/Track'
 
 interface IMoveCursorResult {
   newIndex: number
@@ -467,6 +468,7 @@ export class Control {
       const { deletable = true } = startElement.control!
       if (!deletable) return null
     }
+    const isReviewMode = this.draw.getMode() === EditorMode.REVIEW
     let leftIndex = -1
     let rightIndex = -1
     // 向左查找
@@ -496,11 +498,17 @@ export class Control {
     if (!~leftIndex && !~rightIndex) return startIndex
     leftIndex = ~leftIndex ? leftIndex : 0
     // 删除元素
-    this.draw.spliceElementList(
-      elementList,
-      leftIndex + 1,
-      rightIndex - leftIndex
-    )
+    if(isReviewMode) {
+      const deleteArray = elementList.slice(leftIndex +1 , rightIndex +1 )
+      this.draw.addReviewInformation(deleteArray, TrackType.DELETE)
+    } else {
+      this.draw.spliceElementList(
+        elementList,
+        leftIndex + 1,
+        rightIndex - leftIndex
+      )
+    }
+
     return leftIndex
   }
 

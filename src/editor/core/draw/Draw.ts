@@ -20,12 +20,12 @@ import {
 } from '../../interface/Editor'
 import {
   IElement,
-  IElementMetrics,
   IElementFillRect,
+  IElementMetrics,
   IElementStyle
 } from '../../interface/Element'
 import { IRow, IRowElement } from '../../interface/Row'
-import { deepClone, getUUID, nextTick } from '../../utils'
+import { deepClone, getCurrentTimeString, getUUID, nextTick } from '../../utils'
 import { Cursor } from '../cursor/Cursor'
 import { CanvasEvent } from '../event/CanvasEvent'
 import { GlobalEvent } from '../event/GlobalEvent'
@@ -65,6 +65,7 @@ import {
 } from '../../dataset/enum/Editor'
 import { Control } from './control/Control'
 import {
+  formatElementList,
   deleteSurroundElementList,
   getIsBlockElement,
   getSlimCloneElementList,
@@ -78,7 +79,6 @@ import {
   ControlComponent,
   ControlIndentation
 } from '../../dataset/enum/Control'
-import { formatElementList } from '../../utils/element'
 import { WorkerManager } from '../worker/WorkerManager'
 import { Previewer } from './particle/previewer/Previewer'
 import { DateParticle } from './particle/date/DateParticle'
@@ -108,6 +108,8 @@ import { ITd } from '../../interface/table/Td'
 import { PageBorder } from './frame/PageBorder'
 import { Actuator } from '../actuator/Actuator'
 import { TableOperate } from './particle/table/TableOperate'
+import {TrackType} from '../../dataset/enum/Track'
+import {Track} from './interactive/Track'
 
 export class Draw {
   private container: HTMLDivElement
@@ -134,6 +136,7 @@ export class Draw {
   private background: Background
   private search: Search
   private group: Group
+  private track: Track
   private underline: Underline
   private strikeout: Strikeout
   private highlight: Highlight
@@ -179,6 +182,7 @@ export class Draw {
   private intersectionPageNo: number
   private lazyRenderIntersectionObserver: IntersectionObserver | null
   private printModeData: Required<IEditorData> | null
+  private hideTrack: boolean
 
   constructor(
     rootContainer: HTMLElement,
@@ -213,6 +217,7 @@ export class Draw {
     this.background = new Background(this)
     this.search = new Search(this)
     this.group = new Group(this)
+    this.track = new Track(this)
     this.underline = new Underline(this)
     this.strikeout = new Strikeout(this)
     this.highlight = new Highlight(this)
@@ -270,6 +275,7 @@ export class Draw {
     this.intersectionPageNo = 0
     this.lazyRenderIntersectionObserver = null
     this.printModeData = null
+    this.hideTrack = false
 
     this.render({
       isInit: true,
@@ -352,6 +358,79 @@ export class Draw {
     return selectionElementList.some(
       element => element.title?.disabled || element.control?.disabled
     )
+  }
+  // 添加痕迹信息
+  public addReviewInformation(elementList: IElement[], type: TrackType) {
+    if(this.mode !== EditorMode.REVIEW) return
+    const trackId = getUUID()
+    const len = elementList.length
+    for(let  i = 0; i < len; i++){
+      const element = elementList[i]
+      element.trackId = trackId
+      element.trackType = type
+      element.track = {
+        author: this.options.user.name,
+        date: getCurrentTimeString()
+      }
+      if(this.hideTrack && type === TrackType.DELETE) element.hide = true
+    }
+  }
+  // 隐藏、显示痕迹
+  public hideReview() {
+    this.hideTrack = true
+    const len = this.elementList.length
+    for(let i = 0; i < len; i++){
+      const el = this.elementList[i]
+      if(el.type === ElementType.TABLE) {
+        const trList = el.trList!
+        trList.forEach(tr => {
+          tr.tdList.forEach(td => {
+            td.value.forEach((el, index) => {
+              if (el.trackId && el.trackType === TrackType.DELETE) {
+                td.value[index].hide = true
+              }
+            })
+          })
+        })
+      } else if(el.trackId && el.trackType === TrackType.DELETE) {
+        el.hide = true
+      }
+    }
+    this.clearSideEffect()
+    this.render({
+      isSetCursor: false,
+      isSubmitHistory: false
+    })
+  }
+  public showReview() {
+    this.hideTrack = false
+    const len = this.elementList.length
+    for(let i = 0; i < len; i++){
+      const el = this.elementList[i]
+      if(el.type === ElementType.TABLE) {
+        const trList = el.trList!
+        trList.forEach(tr => {
+          tr.tdList.forEach(td => {
+            td.value.forEach((el, index) => {
+              if (el.trackId && el.trackType === TrackType.DELETE && el.hide) {
+                delete td.value[index].hide
+              }
+            })
+          })
+        })
+      } else if(el.trackId && el.trackType === TrackType.DELETE && el.hide) {
+        delete el.hide
+      }
+    }
+    this.clearSideEffect()
+    this.render({
+      isSetCursor: false,
+      isSubmitHistory: false
+    })
+  }
+
+  public getHideTrackMode(): boolean {
+    return this.hideTrack
   }
 
   public isDesignMode() {
@@ -848,6 +927,10 @@ export class Draw {
     return this.radioParticle
   }
 
+  public getTrack(): Track {
+    return this.track
+  }
+
   public getControl(): Control {
     return this.control
   }
@@ -1296,7 +1379,12 @@ export class Draw {
       const availableWidth = innerWidth - offsetX
       // 增加起始位置坐标偏移量
       x += curRow.elementList.length === 1 ? offsetX : 0
-      if (
+      if(element.hide) {
+        metrics.width = 0
+        metrics.height = 0
+        metrics.boundingBoxDescent = 0
+        metrics.boundingBoxAscent = 0
+      } else if (
         element.type === ElementType.IMAGE ||
         element.type === ElementType.LATEX
       ) {
@@ -1993,6 +2081,13 @@ export class Draw {
       const isWrap = isForceBreak || isWidthNotEnough
       // 新行数据处理
       if (isWrap) {
+        // 整行宽度为0 隐藏行不保留高度
+        if(curRow.width === 0) {
+          const emptyPara = curRow.elementList.length === 1 && curRow.elementList[0].value === ZERO
+          if(!emptyPara) {
+            curRow.height = 0
+          }
+        }
         const row: IRow = {
           width: metrics.width,
           height,
@@ -2254,7 +2349,9 @@ export class Draw {
         } = positionList[curRow.startIndex + j]
         const preElement = curRow.elementList[j - 1]
         // 元素绘制
-        if (element.type === ElementType.IMAGE) {
+        if(element.hide) {
+          this.textParticle.complete()
+        } else if (element.type === ElementType.IMAGE) {
           this.textParticle.complete()
           // 浮动图片单独绘制
           if (
@@ -2501,6 +2598,44 @@ export class Draw {
         if (!group.disabled && element.groupIds) {
           this.group.recordFillInfo(element, x, y, metrics.width, curRow.height)
         }
+        // todo : 留痕信息记录
+        if(element.trackId) {
+          // 如果前后类型不一致
+          if(preElement?.trackId && preElement?.trackType && element?.trackType && element.trackType !== preElement.trackType) {
+            if(!this.hideTrack) {
+              this.track.render(ctx)
+            } else {
+              this.track.clearRectInfo()
+            }
+          }
+          // 基线文字测量信息
+          const standardMetrics = this.textParticle.measureBasisWord(
+            ctx,
+            this.getElementFont(element)
+          )
+          const rowMargin = this.getElementRowMargin(element)
+
+          if(element.trackType === TrackType.INSERT) {
+            const offsetX = element.left || 0
+            const coordinateX = x - offsetX
+            const coordinateY = y + curRow.height - rowMargin + 1
+            const width = metrics.width + offsetX
+            const height = curRow.height
+            this.track.recordInsertRectInfo(element, coordinateX, coordinateY, width, height)
+          } else if(element.trackType === TrackType.DELETE) {
+            let adjustY = y + offsetY + standardMetrics.actualBoundingBoxDescent * scale - metrics.height / 2
+            if(element.type === ElementType.IMAGE || element.type === ElementType.LATEX || element.type === ElementType.TABLE) {
+              adjustY = y + (element.height! / 2) + offsetY
+            }
+            this.track.recordDeleteRectInfo(element, x, adjustY, metrics.width, curRow.height)
+          }
+        } else if(preElement?.trackId) {
+          if(!this.hideTrack) {
+            this.track.render(ctx)
+          } else {
+            this.track.clearRectInfo()
+          }
+        }
         index++
         // 绘制表格内元素
         if (element.type === ElementType.TABLE) {
@@ -2538,6 +2673,11 @@ export class Draw {
       this.strikeout.render(ctx)
       // 绘制批注样式
       this.group.render(ctx)
+      if(!this.hideTrack) {
+        this.track.render(ctx)
+      } else {
+        this.track.clearRectInfo()
+      }
       // 绘制选区
       if (!isPrintMode) {
         if (rangeRecord.width && rangeRecord.height) {
@@ -2944,5 +3084,7 @@ export class Draw {
     this.getHyperlinkParticle().clearHyperlinkPopup()
     // 日期控件
     this.getDateParticle().clearDatePicker()
+    // 痕迹显示
+    this.getTrack().clearTrackPopup()
   }
 }
