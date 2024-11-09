@@ -178,6 +178,12 @@ export interface IElementFillRect {
 }
 
 export interface IUpdateElementByIdOption {
-  id: string
+  id?: string
+  conceptId?: string
   properties: Omit<Partial<IElement>, 'id'>
+}
+
+export interface IGetElementByIdOption {
+  id?: string
+  conceptId?: string
 }
