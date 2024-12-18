@@ -1,5 +1,6 @@
 import { HERSHEY } from './hershey'
 import { SYMB, Symb, asciiMap } from './symbols'
+import {btoa}  from '../../../../../utils/atob_btoa'
 
 const CONFIG: Record<string, number> = {
   SUB_SUP_SCALE: 0.5,
@@ -1124,7 +1125,7 @@ export class LaTexUtils {
     o += `"/>`
     o += `</svg>`
     return {
-      svg: `data:image/svg+xml;base64,${window.btoa(o)}`,
+      svg: `data:image/svg+xml;base64,${btoa(o)}`,
       width: Math.ceil(w),
       height: Math.ceil(h)
     }

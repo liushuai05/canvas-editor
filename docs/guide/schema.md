@@ -76,6 +76,7 @@ interface IElement {
     }[];
   }[];
   borderType?: TableBorder;
+  borderColor?: string;
   // 超链接
   url?: string;
   // 上下标
@@ -89,13 +90,16 @@ interface IElement {
       SELECT = 'select',
       CHECKBOX = 'checkbox',
       RADIO = 'radio'
-      DATE = 'date'
+      DATE = 'date',
+      NUMBER = 'number'
     };
     value: IElement[] | null;
     placeholder?: string;
     conceptId?: string;
     prefix?: string;
     postfix?: string;
+    preText?: string;
+    postText?: string;
     minWidth?: number;
     underline?: boolean;
     border?: boolean;
@@ -108,10 +112,13 @@ interface IElement {
     code: string | null;
     min?: number;
     max?: number;
+    flexDirection: FlexDirection;
     valueSets: {
       value: string;
       code: string;
     }[];
+    isMultiSelect?: boolean;
+    multiSelectDelimiter?: string;
     dateFormat?: string;
     font?: string;
     size?: number;
@@ -120,6 +127,9 @@ interface IElement {
     highlight?: string;
     italic?: boolean;
     strikeout?: boolean;
+    selectExclusiveOptions?: {
+      inputAble?: boolean;
+    }
   };
   controlComponent?: {
     PREFIX = 'prefix',
@@ -176,5 +186,14 @@ interface IElement {
   listType?: ListType;
   listStyle?: ListStyle;
   listWrap?: boolean;
+  // 区域
+  areaId?: string;
+  area?: {
+    extension?: unknown;
+    top?: number;
+    borderColor?: string;
+    backgroundColor?: string;
+    mode?: AreaMode;
+  };
 }
 ```

@@ -1,5 +1,6 @@
 import { NBSP, WRAP, ZERO } from '../../dataset/constant/Common'
 import {
+  AREA_CONTEXT_ATTR,
   EDITOR_ELEMENT_STYLE_ATTR,
   EDITOR_ROW_ATTR,
   LIST_CONTEXT_ATTR,
@@ -33,6 +34,7 @@ import {
   IGetControlValueOption,
   IGetControlValueResult,
   ILocationControlOption,
+  IRemoveControlOption,
   ISetControlExtensionOption,
   ISetControlHighlightOption,
   ISetControlProperties,
@@ -64,7 +66,11 @@ import {
   IGetElementByIdOption,
   IUpdateElementByIdOption
 } from '../../interface/Element'
-import { IPasteOption, IPositionContextByEvent } from '../../interface/Event'
+import {
+  ICopyOption,
+  IPasteOption,
+  IPositionContextByEvent
+} from '../../interface/Event'
 import { IMargin } from '../../interface/Margin'
 import { ILocationPosition } from '../../interface/Position'
 import { IRange, RangeContext, RangeRect } from '../../interface/Range'
@@ -107,6 +113,13 @@ import { Position } from '../position/Position'
 import { RangeManager } from '../range/RangeManager'
 import { WorkerManager } from '../worker/WorkerManager'
 import { Zone } from '../zone/Zone'
+import {
+  IGetAreaValueOption,
+  IGetAreaValueResult,
+  IInsertAreaOption,
+  ISetAreaPropertiesOption
+} from '../../interface/Area'
+import { IAreaBadge, IBadge } from '../../interface/Badge'
 
 export class CommandAdapt {
   private draw: Draw
@@ -147,8 +160,8 @@ export class CommandAdapt {
     this.canvasEvent.cut()
   }
 
-  public copy() {
-    this.canvasEvent.copy()
+  public copy(payload?: ICopyOption) {
+    this.canvasEvent.copy(payload)
   }
 
   public paste(payload?: IPasteOption) {
@@ -345,13 +358,23 @@ export class CommandAdapt {
       })
       this.draw.render({ isSetCursor: false })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
       if (enterElement?.value === ZERO) {
         enterElement.font = payload
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          font: payload
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
@@ -374,6 +397,15 @@ export class CommandAdapt {
       if (enterElement?.value === ZERO) {
         changeElementList.push(enterElement)
         renderOption = { curIndex: endIndex }
+      } else {
+        this.range.setDefaultStyle({
+          size: payload
+        })
+        this.draw.render({
+          curIndex: endIndex,
+          isCompute: false,
+          isSubmitHistory: false
+        })
       }
     }
     if (!changeElementList.length) return
@@ -396,6 +428,7 @@ export class CommandAdapt {
   public sizeAdd() {
     const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
+    const { defaultSize, maxSize } = this.options
     const selection = this.range.getTextLikeSelectionElementList()
     // 选区设置或设置换行处样式
     let renderOption: IDrawOption = {}
@@ -410,10 +443,20 @@ export class CommandAdapt {
       if (enterElement?.value === ZERO) {
         changeElementList.push(enterElement)
         renderOption = { curIndex: endIndex }
+      } else {
+        const style = this.range.getDefaultStyle()
+        const anchorSize = style?.size || enterElement.size || defaultSize
+        this.range.setDefaultStyle({
+          size: anchorSize + 2 > maxSize ? maxSize : anchorSize + 2
+        })
+        this.draw.render({
+          curIndex: endIndex,
+          isCompute: false,
+          isSubmitHistory: false
+        })
       }
     }
     if (!changeElementList.length) return
-    const { defaultSize, maxSize } = this.options
     let isExistUpdate = false
     changeElementList.forEach(el => {
       if (!el.size) {
@@ -435,6 +478,7 @@ export class CommandAdapt {
   public sizeMinus() {
     const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
+    const { defaultSize, minSize } = this.options
     const selection = this.range.getTextLikeSelectionElementList()
     // 选区设置或设置换行处样式
     let renderOption: IDrawOption = {}
@@ -449,10 +493,20 @@ export class CommandAdapt {
       if (enterElement?.value === ZERO) {
         changeElementList.push(enterElement)
         renderOption = { curIndex: endIndex }
+      } else {
+        const style = this.range.getDefaultStyle()
+        const anchorSize = style?.size || enterElement.size || defaultSize
+        this.range.setDefaultStyle({
+          size: anchorSize - 2 < minSize ? minSize : anchorSize - 2
+        })
+        this.draw.render({
+          curIndex: endIndex,
+          isCompute: false,
+          isSubmitHistory: false
+        })
       }
     }
     if (!changeElementList.length) return
-    const { defaultSize, minSize } = this.options
     let isExistUpdate = false
     changeElementList.forEach(el => {
       if (!el.size) {
@@ -482,13 +536,23 @@ export class CommandAdapt {
       })
       this.draw.render({ isSetCursor: false })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
       if (enterElement?.value === ZERO) {
         enterElement.bold = !enterElement.bold
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          bold: enterElement.bold ? false : !this.range.getDefaultStyle()?.bold
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
@@ -503,13 +567,25 @@ export class CommandAdapt {
       })
       this.draw.render({ isSetCursor: false })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
       if (enterElement?.value === ZERO) {
         enterElement.italic = !enterElement.italic
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          italic: enterElement.italic
+            ? false
+            : !this.range.getDefaultStyle()?.italic
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
@@ -541,13 +617,25 @@ export class CommandAdapt {
         isCompute: false
       })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
       if (enterElement?.value === ZERO) {
         enterElement.underline = !enterElement.underline
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          underline: enterElement?.underline
+            ? false
+            : !this.range.getDefaultStyle()?.underline
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
@@ -565,13 +653,25 @@ export class CommandAdapt {
         isCompute: false
       })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
       if (enterElement?.value === ZERO) {
         enterElement.strikeout = !enterElement.strikeout
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          strikeout: enterElement.strikeout
+            ? false
+            : !this.range.getDefaultStyle()?.strikeout
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
@@ -650,6 +750,7 @@ export class CommandAdapt {
         isCompute: false
       })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
@@ -659,8 +760,17 @@ export class CommandAdapt {
         } else {
           delete enterElement.color
         }
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          color: payload || undefined
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
@@ -681,6 +791,7 @@ export class CommandAdapt {
         isCompute: false
       })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
@@ -690,8 +801,17 @@ export class CommandAdapt {
         } else {
           delete enterElement.highlight
         }
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          highlight: payload || undefined
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
@@ -845,6 +965,12 @@ export class CommandAdapt {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
     this.tableOperate.tableBorderType(payload)
+  }
+
+  public tableBorderColor(payload: string) {
+    const isReadonly = this.draw.isReadonly()
+    if (isReadonly) return
+    this.tableOperate.tableBorderColor(payload)
   }
 
   public tableTdBorderType(payload: TdBorder) {
@@ -1284,8 +1410,6 @@ export class CommandAdapt {
     const elementList = this.draw.getElementList()
     const element = elementList[startIndex]
     if (!element || element.type !== ElementType.IMAGE) return
-    // 替换图片
-    element.id = getUUID()
     element.value = payload
     this.draw.render({
       isSetCursor: false
@@ -1339,6 +1463,12 @@ export class CommandAdapt {
 
   public getValue(options?: IGetValueOption): IEditorResult {
     return this.draw.getValue(options)
+  }
+
+  public getAreaValue(
+    options?: IGetAreaValueOption
+  ): IGetAreaValueResult | null {
+    return this.draw.getArea().getAreaValue(options)
   }
 
   public getHTML(): IEditorHTML {
@@ -1553,6 +1683,11 @@ export class CommandAdapt {
     this.draw.setPageMode(payload)
   }
 
+  public pageScale(scale: number) {
+    if (scale === this.options.scale) return
+    this.draw.setPageScale(scale)
+  }
+
   public pageScaleRecovery() {
     const { scale } = this.options
     if (scale !== 1) {
@@ -1590,6 +1725,22 @@ export class CommandAdapt {
 
   public setPaperMargin(payload: IMargin) {
     return this.draw.setPaperMargin(payload)
+  }
+
+  public setMainBadge(payload: IBadge | null) {
+    this.draw.getBadge().setMainBadge(payload)
+    this.draw.render({
+      isCompute: false,
+      isSubmitHistory: false
+    })
+  }
+
+  public setAreaBadge(payload: IAreaBadge[]) {
+    this.draw.getBadge().setAreaBadgeMap(payload)
+    this.draw.render({
+      isCompute: false,
+      isSubmitHistory: false
+    })
   }
 
   public insertElementList(payload: IElement[]) {
@@ -1693,21 +1844,65 @@ export class CommandAdapt {
     this.draw.setValue(payload, options)
   }
 
-  public removeControl() {
-    const { startIndex, endIndex } = this.range.getRange()
-    if (startIndex !== endIndex) return
-    const elementList = this.draw.getElementList()
-    const element = elementList[startIndex]
-    if (!element.controlId) return
-    // 删除控件
-    const control = this.draw.getControl()
-    const newIndex = control.removeControl(startIndex)
-    if (newIndex === null) return
-    // 重新渲染
-    this.range.setRange(newIndex, newIndex)
-    this.draw.render({
-      curIndex: newIndex
-    })
+  public removeControl(payload?: IRemoveControlOption) {
+    if (payload?.id || payload?.conceptId) {
+      const { id, conceptId } = payload
+      let isExistRemove = false
+      const remove = (elementList: IElement[]) => {
+        let i = elementList.length - 1
+        while (i >= 0) {
+          const element = elementList[i]
+          if (element.type === ElementType.TABLE) {
+            const trList = element.trList!
+            for (let r = 0; r < trList.length; r++) {
+              const tr = trList[r]
+              for (let d = 0; d < tr.tdList.length; d++) {
+                const td = tr.tdList[d]
+                remove(td.value)
+              }
+            }
+          }
+          i--
+          if (
+            !element.control ||
+            (id && element.controlId !== id) ||
+            (conceptId && element.control.conceptId !== conceptId)
+          ) {
+            continue
+          }
+          isExistRemove = true
+          elementList.splice(i + 1, 1)
+        }
+      }
+      const data = [
+        this.draw.getHeaderElementList(),
+        this.draw.getOriginalMainElementList(),
+        this.draw.getFooterElementList()
+      ]
+      for (const elementList of data) {
+        remove(elementList)
+      }
+      if (isExistRemove) {
+        this.draw.render({
+          isSetCursor: false
+        })
+      }
+    } else {
+      const { startIndex, endIndex } = this.range.getRange()
+      if (startIndex !== endIndex) return
+      const elementList = this.draw.getElementList()
+      const element = elementList[startIndex]
+      if (!element.controlId) return
+      // 删除控件
+      const control = this.draw.getControl()
+      const newIndex = control.removeControl(startIndex)
+      if (newIndex === null) return
+      // 重新渲染
+      this.range.setRange(newIndex, newIndex)
+      this.draw.render({
+        curIndex: newIndex
+      })
+    }
   }
 
   public setLocale(payload: string) {
@@ -1723,7 +1918,7 @@ export class CommandAdapt {
   }
 
   public locationCatalog(titleId: string) {
-    const elementList = this.draw.getMainElementList()
+    const elementList = this.draw.getOriginalMainElementList()
     let newIndex = -1
     for (let e = 0; e < elementList.length; e++) {
       const element = elementList[e]
@@ -1736,6 +1931,9 @@ export class CommandAdapt {
       }
     }
     if (!~newIndex) return
+    this.position.setPositionContext({
+      isTable: false
+    })
     this.range.setRange(newIndex, newIndex)
     this.draw.render({
       curIndex: newIndex,
@@ -1911,7 +2109,17 @@ export class CommandAdapt {
           curIndex -= 1
           if (
             element.controlComponent !== ControlComponent.PLACEHOLDER &&
-            element.controlComponent !== ControlComponent.POSTFIX
+            element.controlComponent !== ControlComponent.POSTFIX &&
+            element.controlComponent !== ControlComponent.POST_TEXT
+          ) {
+            continue
+          }
+        } else {
+          if (
+            (element.controlComponent !== ControlComponent.PREFIX &&
+              element.controlComponent !== ControlComponent.PRE_TEXT) ||
+            elementList[i]?.controlComponent === ControlComponent.PREFIX ||
+            elementList[i]?.controlComponent === ControlComponent.PRE_TEXT
           ) {
             continue
           }
@@ -1972,7 +2180,8 @@ export class CommandAdapt {
     const cloneAttr = [
       ...TABLE_CONTEXT_ATTR,
       ...EDITOR_ROW_ATTR,
-      ...LIST_CONTEXT_ATTR
+      ...LIST_CONTEXT_ATTR,
+      ...AREA_CONTEXT_ATTR
     ]
     cloneProperty<IElement>(cloneAttr, copyElement, cloneElement)
     // 插入控件
@@ -2120,7 +2329,8 @@ export class CommandAdapt {
     const cloneAttr = [
       ...TABLE_CONTEXT_ATTR,
       ...EDITOR_ROW_ATTR,
-      ...LIST_CONTEXT_ATTR
+      ...LIST_CONTEXT_ATTR,
+      ...AREA_CONTEXT_ATTR
     ]
     cloneElement.valueList?.forEach(valueItem => {
       cloneProperty<IElement>(cloneAttr, copyElement, valueItem)
@@ -2146,5 +2356,13 @@ export class CommandAdapt {
       cursorPosition: positionList[curIndex],
       direction: MoveDirection.DOWN
     })
+  }
+
+  public insertArea(payload: IInsertAreaOption) {
+    return this.draw.getArea().insertArea(payload)
+  }
+
+  public setAreaProperties(payload: ISetAreaPropertiesOption) {
+    this.draw.getArea().setAreaProperties(payload)
   }
 }

@@ -6,7 +6,11 @@ import { Command } from './core/command/Command'
 import { CommandAdapt } from './core/command/CommandAdapt'
 import { Listener } from './core/listener/Listener'
 import { RowFlex } from './dataset/enum/Row'
-import { ImageDisplay, LocationPosition } from './dataset/enum/Common'
+import {
+  FlexDirection,
+  ImageDisplay,
+  LocationPosition
+} from './dataset/enum/Common'
 import { ElementType } from './dataset/enum/Element'
 import { formatElementList } from './utils/element'
 import { Register } from './core/register/Register'
@@ -26,7 +30,11 @@ import {
 } from './dataset/enum/Editor'
 import { EDITOR_CLIPBOARD, EDITOR_COMPONENT } from './dataset/constant/Editor'
 import { IWatermark } from './interface/Watermark'
-import { ControlIndentation, ControlType } from './dataset/enum/Control'
+import {
+  ControlIndentation,
+  ControlState,
+  ControlType
+} from './dataset/enum/Control'
 import { INavigateInfo } from './core/draw/interactive/Search'
 import { Shortcut } from './core/shortcut/Shortcut'
 import { KeyMap } from './dataset/enum/KeyMap'
@@ -59,6 +67,8 @@ import { BackgroundRepeat, BackgroundSize } from './dataset/enum/Background'
 import { TextDecorationStyle } from './dataset/enum/Text'
 import { mergeOption } from './utils/option'
 import { LineNumberType } from './dataset/enum/LineNumber'
+import { AreaMode } from './dataset/enum/Area'
+import { IBadge } from './interface/Badge'
 
 export default class Editor {
   public command: Command
@@ -190,7 +200,9 @@ export {
   TextDecorationStyle,
   LineNumberType,
   LocationPosition,
-  IGetElementListByHTMLOption
+  AreaMode,
+  ControlState,
+  FlexDirection
 }
 
 // 对外类型
@@ -208,5 +220,7 @@ export type {
   ICatalog,
   ICatalogItem,
   IRange,
-  IRangeStyle
+  IRangeStyle,
+  IBadge,
+  IGetElementListByHTMLOption
 }

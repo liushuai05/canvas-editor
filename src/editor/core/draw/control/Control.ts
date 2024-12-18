@@ -1,15 +1,21 @@
-import { ControlComponent, ControlType } from '../../../dataset/enum/Control'
+import {
+  ControlComponent,
+  ControlState,
+  ControlType
+} from '../../../dataset/enum/Control'
 import { EditorZone } from '../../../dataset/enum/Editor'
 import { ElementType } from '../../../dataset/enum/Element'
 import { DeepRequired } from '../../../interface/Common'
 import {
   IControl,
+  IControlChangeResult,
   IControlContext,
   IControlHighlight,
   IControlInitOption,
   IControlInstance,
   IControlOption,
   IControlRuleOption,
+  IDestroyControlOption,
   IGetControlValueOption,
   IGetControlValueResult,
   IInitNextControlOption,
@@ -24,13 +30,7 @@ import { IEditorData, IEditorOption } from '../../../interface/Editor'
 import { IElement, IElementPosition } from '../../../interface/Element'
 import { EventBusMap } from '../../../interface/EventBus'
 import { IRange } from '../../../interface/Range'
-import {
-  deepClone,
-  nextTick,
-  omitObject,
-  pickObject,
-  splitText
-} from '../../../utils'
+import { deepClone, omitObject, pickObject, splitText } from '../../../utils'
 import {
   formatElementContext,
   formatElementList,
@@ -48,6 +48,7 @@ import { ControlBorder } from './richtext/Border'
 import { SelectControl } from './select/SelectControl'
 import { TextControl } from './text/TextControl'
 import { DateControl } from './date/DateControl'
+import { NumberControl } from './number/NumberControl'
 import { MoveDirection } from '../../../dataset/enum/Observer'
 import {
   CONTROL_CONTEXT_ATTR,
@@ -57,6 +58,7 @@ import {
 } from '../../../dataset/constant/Element'
 import { IRowElement } from '../../../interface/Row'
 import { RowFlex } from '../../../dataset/enum/Row'
+import { ZERO } from '../../../dataset/constant/Common'
 
 interface IMoveCursorResult {
   newIndex: number
@@ -72,6 +74,7 @@ export class Control {
   private options: DeepRequired<IEditorOption>
   private controlOptions: IControlOption
   private activeControl: IControlInstance | null
+  private activeControlValue: IElement[]
 
   constructor(draw: Draw) {
     this.controlBorder = new ControlBorder(draw)
@@ -85,6 +88,7 @@ export class Control {
     this.options = draw.getOptions()
     this.controlOptions = this.options.control
     this.activeControl = null
+    this.activeControlValue = []
   }
 
   // 搜索高亮匹配
@@ -112,7 +116,7 @@ export class Control {
 
   // 过滤控件辅助元素（前后缀、背景提示）
   public filterAssistElement(elementList: IElement[]): IElement[] {
-    return elementList.filter(element => {
+    return elementList.filter((element, index) => {
       if (element.type === ElementType.TABLE) {
         const trList = element.trList!
         for (let r = 0; r < trList.length; r++) {
@@ -131,6 +135,42 @@ export class Control {
         ) {
           element.value = ''
           return true
+        }
+      } else {
+        // 控件存在值时无需过滤前后文本
+        if (
+          element.control?.preText &&
+          element.controlComponent === ControlComponent.PRE_TEXT
+        ) {
+          let isExistValue = false
+          let start = index + 1
+          while (start < elementList.length) {
+            const nextElement = elementList[start]
+            if (element.controlId !== nextElement.controlId) break
+            if (nextElement.controlComponent === ControlComponent.VALUE) {
+              isExistValue = true
+              break
+            }
+            start++
+          }
+          return isExistValue
+        }
+        if (
+          element.control?.postText &&
+          element.controlComponent === ControlComponent.POST_TEXT
+        ) {
+          let isExistValue = false
+          let start = index - 1
+          while (start < elementList.length) {
+            const preElement = elementList[start]
+            if (element.controlId !== preElement.controlId) break
+            if (preElement.controlComponent === ControlComponent.VALUE) {
+              isExistValue = true
+              break
+            }
+            start--
+          }
+          return isExistValue
         }
       }
       return (
@@ -270,9 +310,37 @@ export class Control {
     return this.activeControl
   }
 
+  public getControlElementList(context: IControlContext = {}): IElement[] {
+    const elementList = context.elementList || this.getElementList()
+    const { startIndex } = context.range || this.getRange()
+    const startElement = elementList[startIndex]
+    const data: IElement[] = []
+    // 向左查找
+    let preIndex = startIndex
+    while (preIndex > 0) {
+      const preElement = elementList[preIndex]
+      if (preElement.controlId !== startElement.controlId) break
+      data.unshift(preElement)
+      preIndex--
+    }
+    // 向右查找
+    let nextIndex = startIndex + 1
+    while (nextIndex < elementList.length) {
+      const nextElement = elementList[nextIndex]
+      if (nextElement.controlId !== startElement.controlId) break
+      data.push(nextElement)
+      nextIndex++
+    }
+    return data
+  }
+
+  public updateActiveControlValue() {
+    if (this.activeControl) {
+      this.activeControlValue = this.getControlElementList()
+    }
+  }
+
   public initControl() {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
     const elementList = this.getElementList()
     const range = this.getRange()
     const element = elementList[range.startIndex]
@@ -290,11 +358,17 @@ export class Control {
         }
       }
       const controlElement = this.activeControl.getElement()
-      if (element.controlId === controlElement.controlId) return
+      if (element.controlId === controlElement.controlId) {
+        // 更新缓存控件数据
+        this.updateActiveControlValue()
+        return
+      }
     }
     // 销毁旧激活控件
     this.destroyControl()
     // 激活控件
+    const isReadonly = this.draw.isReadonly()
+    if (isReadonly) return
     const control = element.control!
     if (control.type === ControlType.TEXT) {
       this.activeControl = new TextControl(element, this)
@@ -310,52 +384,71 @@ export class Control {
       const dateControl = new DateControl(element, this)
       this.activeControl = dateControl
       dateControl.awake()
+    } else if (control.type === ControlType.NUMBER) {
+      this.activeControl = new NumberControl(element, this)
     }
+    // 缓存控件数据
+    this.updateActiveControlValue()
     // 激活控件回调
-    nextTick(() => {
-      const controlChangeListener = this.listener.controlChange
-      const isSubscribeControlChange =
-        this.eventBus.isSubscribe('controlChange')
-      if (!controlChangeListener && !isSubscribeControlChange) return
-      let payload: IControl
-      const value = this.activeControl?.getValue()
-      if (value && value.length) {
-        payload = zipElementList(value)[0].control!
+    const isSubscribeControlChange = this.eventBus.isSubscribe('controlChange')
+    if (this.listener.controlChange || isSubscribeControlChange) {
+      let control: IControl
+      const value = this.activeControlValue
+      if (value?.length) {
+        control = zipElementList(value)[0].control!
       } else {
-        payload = pickElementAttr(deepClone(element)).control!
+        control = pickElementAttr(deepClone(element)).control!
+        control.value = []
       }
-      if (controlChangeListener) {
-        controlChangeListener(payload)
+      const payload: IControlChangeResult = {
+        control,
+        controlId: element.controlId!,
+        state: ControlState.ACTIVE
       }
+      this.listener.controlChange?.(payload)
       if (isSubscribeControlChange) {
         this.eventBus.emit('controlChange', payload)
       }
-    })
+    }
   }
 
-  public destroyControl() {
-    if (this.activeControl) {
-      if (
-        this.activeControl instanceof SelectControl ||
-        this.activeControl instanceof DateControl
-      ) {
-        this.activeControl.destroy()
-      }
-      this.activeControl = null
-      // 销毁控件回调
-      nextTick(() => {
-        const controlChangeListener = this.listener.controlChange
-        const isSubscribeControlChange =
-          this.eventBus.isSubscribe('controlChange')
-        if (!controlChangeListener && !isSubscribeControlChange) return
-        if (controlChangeListener) {
-          controlChangeListener(null)
-        }
-        if (isSubscribeControlChange) {
-          this.eventBus.emit('controlChange', null)
-        }
-      })
+  public destroyControl(options: IDestroyControlOption = {}) {
+    if (!this.activeControl) return
+    const { isEmitEvent = true } = options
+    if (
+      this.activeControl instanceof SelectControl ||
+      this.activeControl instanceof DateControl
+    ) {
+      this.activeControl.destroy()
     }
+    // 销毁控件回调
+    if (isEmitEvent) {
+      const isSubscribeControlChange =
+        this.eventBus.isSubscribe('controlChange')
+      if (this.listener.controlChange || isSubscribeControlChange) {
+        let control: IControl
+        const value = this.activeControlValue
+        const activeElement = this.activeControl.getElement()
+        if (value?.length) {
+          control = zipElementList(value)[0].control!
+        } else {
+          control = pickElementAttr(deepClone(activeElement)).control!
+          control.value = []
+        }
+        const payload: IControlChangeResult = {
+          control,
+          controlId: activeElement.controlId!,
+          state: ControlState.INACTIVE
+        }
+        this.listener.controlChange?.(payload)
+        if (isSubscribeControlChange) {
+          this.eventBus.emit('controlChange', payload)
+        }
+      }
+    }
+    // 清空变量
+    this.activeControl = null
+    this.activeControlValue = []
   }
 
   public repaintControl(options: IRepaintControlOption = {}) {
@@ -430,14 +523,18 @@ export class Control {
         }
         startIndex++
       }
-    } else if (element.controlComponent === ControlComponent.PREFIX) {
-      // PREFIX-移动到最后一个前缀字符后
+    } else if (
+      element.controlComponent === ControlComponent.PREFIX ||
+      element.controlComponent === ControlComponent.PRE_TEXT
+    ) {
+      // PREFIX或前文本-移动到最后一个前缀字符后
       let startIndex = newIndex + 1
       while (startIndex < elementList.length) {
         const nextElement = elementList[startIndex]
         if (
           nextElement.controlId !== element.controlId ||
-          nextElement.controlComponent !== ControlComponent.PREFIX
+          (nextElement.controlComponent !== ControlComponent.PREFIX &&
+            nextElement.controlComponent !== ControlComponent.PRE_TEXT)
         ) {
           return {
             newIndex: startIndex - 1,
@@ -446,14 +543,19 @@ export class Control {
         }
         startIndex++
       }
-    } else if (element.controlComponent === ControlComponent.PLACEHOLDER) {
-      // PLACEHOLDER-移动到第一个前缀后
+    } else if (
+      element.controlComponent === ControlComponent.PLACEHOLDER ||
+      element.controlComponent === ControlComponent.POST_TEXT
+    ) {
+      // PLACEHOLDER或后文本-移动到第一个前缀或内容后
       let startIndex = newIndex - 1
       while (startIndex > 0) {
         const preElement = elementList[startIndex]
         if (
           preElement.controlId !== element.controlId ||
-          preElement.controlComponent === ControlComponent.PREFIX
+          preElement.controlComponent === ControlComponent.VALUE ||
+          preElement.controlComponent === ControlComponent.PREFIX ||
+          preElement.controlComponent === ControlComponent.PRE_TEXT
         ) {
           return {
             newIndex: startIndex,
@@ -557,7 +659,7 @@ export class Control {
       const value = placeholderStrList[p]
       const newElement: IElement = {
         ...anchorElementStyleAttr,
-        value,
+        value: value === '\n' ? ZERO : value,
         controlId: startElement.controlId,
         type: ElementType.CONTROL,
         control: startElement.control,
@@ -583,6 +685,37 @@ export class Control {
     return this.activeControl.setValue(data)
   }
 
+  public setControlProperties(
+    properties: Partial<IControl>,
+    context: IControlContext = {}
+  ) {
+    const elementList = context.elementList || this.getElementList()
+    const { startIndex } = context.range || this.getRange()
+    const startElement = elementList[startIndex]
+    // 向左查找
+    let preIndex = startIndex
+    while (preIndex > 0) {
+      const preElement = elementList[preIndex]
+      if (preElement.controlId !== startElement.controlId) break
+      preElement.control = {
+        ...preElement.control!,
+        ...properties
+      }
+      preIndex--
+    }
+    // 向右查找
+    let nextIndex = startIndex + 1
+    while (nextIndex < elementList.length) {
+      const nextElement = elementList[nextIndex]
+      if (nextElement.controlId !== startElement.controlId) break
+      nextElement.control = {
+        ...nextElement.control!,
+        ...properties
+      }
+      nextIndex++
+    }
+  }
+
   public keydown(evt: KeyboardEvent): number | null {
     if (!this.activeControl) {
       throw new Error('active control is null')
@@ -598,7 +731,7 @@ export class Control {
   }
 
   public getValueById(payload: IGetControlValueOption): IGetControlValueResult {
-    const { id, conceptId } = payload
+    const { id, conceptId, areaId } = payload
     const result: IGetControlValueResult = []
     if (!id && !conceptId) return result
     const getValue = (elementList: IElement[], zone: EditorZone) => {
@@ -620,7 +753,8 @@ export class Control {
         if (
           !element.control ||
           (id && element.controlId !== id) ||
-          (conceptId && element.control.conceptId !== conceptId)
+          (conceptId && element.control.conceptId !== conceptId) ||
+          (areaId && element.areaId !== areaId)
         ) {
           continue
         }
@@ -632,7 +766,9 @@ export class Control {
           const nextElement = elementList[j]
           if (nextElement.controlId !== element.controlId) break
           if (
-            (type === ControlType.TEXT || type === ControlType.DATE) &&
+            (type === ControlType.TEXT ||
+              type === ControlType.DATE ||
+              type === ControlType.NUMBER) &&
             nextElement.controlComponent === ControlComponent.VALUE
           ) {
             textControlValue += nextElement.value
@@ -642,7 +778,11 @@ export class Control {
           }
           j++
         }
-        if (type === ControlType.TEXT || type === ControlType.DATE) {
+        if (
+          type === ControlType.TEXT ||
+          type === ControlType.DATE ||
+          type === ControlType.NUMBER
+        ) {
           result.push({
             ...element.control,
             zone,
@@ -695,7 +835,7 @@ export class Control {
 
   public setValueById(payload: ISetControlValueOption) {
     let isExistSet = false
-    const { id, conceptId, value } = payload
+    const { id, conceptId, areaId, value } = payload
     if (!id && !conceptId) return
     // 设置值
     const setValue = (elementList: IElement[]) => {
@@ -717,7 +857,8 @@ export class Control {
         if (
           !element.control ||
           (id && element.controlId !== id) ||
-          (conceptId && element.control.conceptId !== conceptId)
+          (conceptId && element.control.conceptId !== conceptId) ||
+          (areaId && element.areaId !== areaId)
         ) {
           continue
         }
@@ -785,6 +926,19 @@ export class Control {
           } else {
             date.clearSelect(controlContext, controlRule)
           }
+        } else if (type === ControlType.NUMBER) {
+          const formatValue = Array.isArray(value) ? value : [{ value }]
+          formatElementList(formatValue, {
+            isHandleFirstElement: false,
+            editorOptions: this.options
+          })
+          const text = new NumberControl(element, this)
+          this.activeControl = text
+          if (value) {
+            text.setValue(formatValue, controlContext, controlRule)
+          } else {
+            text.clearValue(controlContext, controlRule)
+          }
         }
         // 模拟控件激活后销毁
         this.activeControl = null
@@ -799,7 +953,9 @@ export class Control {
       }
     }
     // 销毁旧控件
-    this.destroyControl()
+    this.destroyControl({
+      isEmitEvent: false
+    })
     // 页眉、内容区、页脚同时处理
     const data = [
       this.draw.getHeaderElementList(),
@@ -817,7 +973,7 @@ export class Control {
   }
 
   public setExtensionById(payload: ISetControlExtensionOption) {
-    const { id, conceptId, extension } = payload
+    const { id, conceptId, areaId, extension } = payload
     if (!id && !conceptId) return
     const setExtension = (elementList: IElement[]) => {
       let i = 0
@@ -838,11 +994,21 @@ export class Control {
         if (
           !element.control ||
           (id && element.controlId !== id) ||
-          (conceptId && element.control.conceptId !== conceptId)
+          (conceptId && element.control.conceptId !== conceptId) ||
+          (areaId && element.areaId !== areaId)
         ) {
           continue
         }
-        element.control.extension = extension
+        // 设置值
+        this.setControlProperties(
+          {
+            extension
+          },
+          {
+            elementList,
+            range: { startIndex: i, endIndex: i }
+          }
+        )
         // 修改后控件结束索引
         let newEndIndex = i
         while (newEndIndex < elementList.length) {
@@ -864,10 +1030,10 @@ export class Control {
   }
 
   public setPropertiesById(payload: ISetControlProperties) {
-    const { id, conceptId, properties } = payload
+    const { id, conceptId, areaId, properties } = payload
     if (!id && !conceptId) return
     let isExistUpdate = false
-    function setProperties(elementList: IElement[]) {
+    const setProperties = (elementList: IElement[]) => {
       let i = 0
       while (i < elementList.length) {
         const element = elementList[i]
@@ -885,16 +1051,24 @@ export class Control {
         if (
           !element.control ||
           (id && element.controlId !== id) ||
-          (conceptId && element.control.conceptId !== conceptId)
+          (conceptId && element.control.conceptId !== conceptId) ||
+          (areaId && element.areaId !== areaId)
         ) {
           continue
         }
         isExistUpdate = true
-        element.control = {
-          ...element.control,
-          ...properties,
-          value: element.control.value
-        }
+        // 设置属性
+        this.setControlProperties(
+          {
+            ...element.control,
+            ...properties,
+            value: element.control.value
+          },
+          {
+            elementList,
+            range: { startIndex: i, endIndex: i }
+          }
+        )
         // 控件默认样式
         CONTROL_STYLE_ATTR.forEach(key => {
           const controlStyleProperty = properties[key]
@@ -926,7 +1100,9 @@ export class Control {
     // 强制更新
     for (const key in pageComponentData) {
       const pageComponentKey = <keyof IEditorData>key
-      const elementList = zipElementList(pageComponentData[pageComponentKey]!)
+      const elementList = zipElementList(pageComponentData[pageComponentKey]!, {
+        isClassifyArea: true
+      })
       pageComponentData[pageComponentKey] = elementList
       formatElementList(elementList, {
         editorOptions: this.options,
@@ -1037,7 +1213,8 @@ export class Control {
           const nextElement = elementList[nextIndex]
           if (
             nextElement.controlComponent === ControlComponent.VALUE ||
-            nextElement.controlComponent === ControlComponent.PREFIX
+            nextElement.controlComponent === ControlComponent.PREFIX ||
+            nextElement.controlComponent === ControlComponent.PRE_TEXT
           ) {
             break
           }
@@ -1147,7 +1324,9 @@ export class Control {
         }
         if (
           !element.controlId ||
-          element.controlId === controlElement.controlId
+          element.controlId === controlElement.controlId ||
+          elementList[e + 1]?.controlComponent === ControlComponent.PREFIX ||
+          elementList[e + 1]?.controlComponent === ControlComponent.PRE_TEXT
         ) {
           continue
         }

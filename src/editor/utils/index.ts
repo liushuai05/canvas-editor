@@ -1,5 +1,6 @@
 import { UNICODE_SYMBOL_REG } from '../dataset/constant/Regular'
 import { IElementFillRect } from '../interface/Element'
+import {btoa}  from './atob_btoa'
 
 export function debounce<T extends unknown[]>(
   func: (...arg: T) => unknown,
@@ -291,7 +292,7 @@ export function convertStringToBase64(input: string) {
   const encoder = new TextEncoder()
   const data = encoder.encode(input)
   const charArray = Array.from(data, byte => String.fromCharCode(byte))
-  const base64 = window.btoa(charArray.join(''))
+  const base64 = btoa(charArray.join(''))
   return base64
 }
 
@@ -349,4 +350,12 @@ export function isRectIntersect(
     return false
   }
   return true
+}
+
+export function isNonValue(value: unknown): boolean {
+  return value === undefined || value === null
+}
+
+export function normalizeLineBreak(text: string): string {
+  return text.replace(/\r\n|\r/g, '\n')
 }

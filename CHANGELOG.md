@@ -1,3 +1,58 @@
+## [0.9.98](https://github.com/Hufe921/canvas-editor/compare/v0.9.97...v0.9.98) (2024-12-01)
+
+
+### Bug Fixes
+
+*  fix: paste error caused by different line breaks #912 ([e45f4e9](https://github.com/Hufe921/canvas-editor/commit/e45f4e96389a5273a13aebacc5f5577721bb2da1)), closes [#912](https://github.com/Hufe921/canvas-editor/issues/912)
+* control property modification #914 ([a827138](https://github.com/Hufe921/canvas-editor/commit/a827138978bb9953d351d30d994f586738f080fd)), closes [#914](https://github.com/Hufe921/canvas-editor/issues/914)
+* copy elements within the control #901 ([750bf14](https://github.com/Hufe921/canvas-editor/commit/750bf14428c7c7e55ed55f88c0c2b20f31f76e59)), closes [#901](https://github.com/Hufe921/canvas-editor/issues/901)
+* insertControl and insertTitle apis add area context #911 ([b6294b2](https://github.com/Hufe921/canvas-editor/commit/b6294b264a93a25c12acdae2041132ba88c79ba0)), closes [#911](https://github.com/Hufe921/canvas-editor/issues/911)
+* processing area property is empty ([5112451](https://github.com/Hufe921/canvas-editor/commit/5112451f912e814af8439b907eb87ce5df6ee38c))
+* table row height calculation boundary error #909 ([bbb554f](https://github.com/Hufe921/canvas-editor/commit/bbb554feabec664df89fd7d751be4f89c97b5145)), closes [#909](https://github.com/Hufe921/canvas-editor/issues/909)
+
+
+### Features
+
+* add executePageScale api #906 ([2430bf7](https://github.com/Hufe921/canvas-editor/commit/2430bf70d69ce97c0cc10d5b99d50f58ff1838ed)), closes [#906](https://github.com/Hufe921/canvas-editor/issues/906)
+* add plain text copy option ([34c4401](https://github.com/Hufe921/canvas-editor/commit/34c4401cb0c461cc64e223f0b23fddc679bc88c7))
+* add select control can input option #518 ([1d01576](https://github.com/Hufe921/canvas-editor/commit/1d01576769960fa130f8a16410c74d5a285084ee)), closes [#518](https://github.com/Hufe921/canvas-editor/issues/518)
+* add table border color #897 ([7e8af04](https://github.com/Hufe921/canvas-editor/commit/7e8af04977d8c8038e8af262c0cfde2b46704a03)), closes [#897](https://github.com/Hufe921/canvas-editor/issues/897)
+* add text before and after the control #902 ([5e15ffe](https://github.com/Hufe921/canvas-editor/commit/5e15ffebc6b34394138b4a6c47fc90033bd82819)), closes [#902](https://github.com/Hufe921/canvas-editor/issues/902)
+* the select control support multiple selection #518 ([62ae039](https://github.com/Hufe921/canvas-editor/commit/62ae039d58768ad580696229695ce80af0c1b257)), closes [#518](https://github.com/Hufe921/canvas-editor/issues/518)
+
+
+
+## [0.9.97](https://github.com/Hufe921/canvas-editor/compare/v0.9.96...v0.9.97) (2024-11-22)
+
+
+### Bug Fixes
+
+* add the first character of area ([1a3f062](https://github.com/Hufe921/canvas-editor/commit/1a3f0626514615d3b5c48dfca9d4d5a03b673ad3))
+* cursor position is on the top margin calculation error #882 ([992e4ed](https://github.com/Hufe921/canvas-editor/commit/992e4edb2a7ade02847a0be234d3ca4f429949ff)), closes [#882](https://github.com/Hufe921/canvas-editor/issues/882)
+* data retrieval error when control was destroyed #884 ([1c5ef78](https://github.com/Hufe921/canvas-editor/commit/1c5ef7801ac1fb18fe131912cbd2547023e35982)), closes [#884](https://github.com/Hufe921/canvas-editor/issues/884)
+* destroy control boundary error #895 ([6bed83b](https://github.com/Hufe921/canvas-editor/commit/6bed83b645f67c5c59ba5c4ee811e985e1dbc60f)), closes [#895](https://github.com/Hufe921/canvas-editor/issues/895)
+* disable highlight style in print mode #893 ([49360fd](https://github.com/Hufe921/canvas-editor/commit/49360fda0eff9ae24f5b79b742bd8cdf1f99ca20)), closes [#893](https://github.com/Hufe921/canvas-editor/issues/893)
+* insert area error when cursor is within table #891 ([b16aa71](https://github.com/Hufe921/canvas-editor/commit/b16aa71798c440327d49c6c8f4c3166ea5bc5ee7)), closes [#891](https://github.com/Hufe921/canvas-editor/issues/891)
+* line break rendering error for control placeholder #883 ([679c4fa](https://github.com/Hufe921/canvas-editor/commit/679c4fac5f3eba524f582cb090390b2e302a1b81)), closes [#883](https://github.com/Hufe921/canvas-editor/issues/883)
+* set alignment error when row width is not enough #885 ([c71d99c](https://github.com/Hufe921/canvas-editor/commit/c71d99cbd4d827b8af6788663f46403b141e2797)), closes [#885](https://github.com/Hufe921/canvas-editor/issues/885)
+* virtual input location boundary error #878 ([2d43343](https://github.com/Hufe921/canvas-editor/commit/2d43343d83917ea35340a8610958df4e09d67e8b)), closes [#878](https://github.com/Hufe921/canvas-editor/issues/878)
+
+
+### Chores
+
+* export controlId and titleId ([30b405c](https://github.com/Hufe921/canvas-editor/commit/30b405c270a7ca6a09f5824b3cf4a5bd552e0478))
+* update add control method ([c370df7](https://github.com/Hufe921/canvas-editor/commit/c370df7d3666ab0ed99fc2538b50e3bb5fbd0bf1))
+
+
+### Features
+
+* add area element #216 ([204a886](https://github.com/Hufe921/canvas-editor/commit/204a886c1dcd01c3b56695eef74c3c39221bcdb3)), closes [#216](https://github.com/Hufe921/canvas-editor/issues/216)
+* add control state property to the ControlChange event #884 ([e5480a3](https://github.com/Hufe921/canvas-editor/commit/e5480a3f00044e901b255c77f6b8ae7fb91ef4f4)), closes [#884](https://github.com/Hufe921/canvas-editor/issues/884)
+* handle copy area context boundary ([64b4100](https://github.com/Hufe921/canvas-editor/commit/64b41009c42dbba1600e92301a6db89cd8fb421d))
+* style settings when range is collapsed #870 ([fbdd5f6](https://github.com/Hufe921/canvas-editor/commit/fbdd5f62786398e66c7740da28b1656c4f36f131)), closes [#870](https://github.com/Hufe921/canvas-editor/issues/870)
+
+
+
 ## [0.9.96](https://github.com/Hufe921/canvas-editor/compare/v0.9.95...v0.9.96) (2024-11-09)
 
 
